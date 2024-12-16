@@ -520,79 +520,39 @@ run(function()
                 AimAssistVertical = AimAssist:CreateToggle({Name = 'Vertical aim'})
             end)
 
-            run(function()
-                local AutoClicker = {Enabled = false}
-                local AutoClickerCPS = {GetRandomValue = function() return 1 end}
-                local AutoClickerBlocks = {Enabled = false}
-                local AutoClickerThread
+            local function AutoClick()
+    if AutoClickerThread then task.cancel(AutoClickerThread) end
+    AutoClickerThread = task.spawn(function()
+        local first = true
+        local hitInterval = 10 / 36  -- 36 hits in 10 seconds (about 0.27778 seconds per hit)
+        
+        repeat
+            -- Adjust the waiting interval for 36 hits in 10 seconds
+            task.wait(hitInterval)
+            
+            first = false
+            if not AutoClicker.Enabled then break end
+            if not isNotHoveringOverGui() then continue end
+            if bedwars.AppController:isLayerOpen(bedwars.UILayers.MAIN) then continue end
 
-                local function isNotHoveringOverGui()
-                    local mousepos = inputService:GetMouseLocation() - Vector2.new(0, 36)
-                    for _, v in lplr.PlayerGui:GetGuiObjectsAtPosition(mousepos.X, mousepos.Y) do
-                        if v.Active then return false end
-                    end
-                    for _, v in coreGui:GetGuiObjectsAtPosition(mousepos.X, mousepos.Y) do
-                        if v.Parent:IsA('ScreenGui') and v.Parent.Enabled and v.Active then return false end
-                    end
-                    return true
-                end
-
-                local function AutoClick()
-                    if AutoClickerThread then task.cancel(AutoClickerThread) end
-                    AutoClickerThread = task.spawn(function()
-                        local first = true
-                        repeat
-                            task.wait(1 / ((first or store.hand.Type == 'sword') and 7 or AutoClickerCPS.Value))
-                            first = false
-                            if not AutoClicker.Enabled then break end
-                            if not isNotHoveringOverGui() then continue end
-                            if bedwars.AppController:isLayerOpen(bedwars.UILayers.MAIN) then continue end
-                            if store.hand.Type == 'block' and AutoClickerBlocks.Enabled and bedwars.BlockPlacementController.blockPlacer then
-                                if (workspace:GetServerTimeNow() - bedwars.BlockCpsController.lastPlaceTimestamp) >= ((1 / 12) * 0.5) then
-                                    local mouseinfo = bedwars.BlockPlacementController.blockPlacer.clientManager:getBlockSelector():getMouseInfo(0)
-                                    if mouseinfo then
-                                        task.spawn(function()
-                                            if mouseinfo.placementPosition == mouseinfo.placementPosition then
-                                                bedwars.BlockPlacementController.blockPlacer:placeBlock(mouseinfo.placementPosition)
-                                            end
-                                        end)
-                                    end
-                                end
-                            elseif store.hand.Type == 'sword' and bedwars.DaoController.chargingMaid == nil then
-                                bedwars.SwordController:swingSwordAtMouse()
+            if store.hand.Type == 'block' and AutoClickerBlocks.Enabled and bedwars.BlockPlacementController.blockPlacer then
+                if (workspace:GetServerTimeNow() - bedwars.BlockCpsController.lastPlaceTimestamp) >= ((1 / 12) * 0.5) then
+                    local mouseinfo = bedwars.BlockPlacementController.blockPlacer.clientManager:getBlockSelector():getMouseInfo(0)
+                    if mouseinfo then
+                        task.spawn(function()
+                            if mouseinfo.placementPosition == mouseinfo.placementPosition then
+                                bedwars.BlockPlacementController.blockPlacer:placeBlock(mouseinfo.placementPosition)
                             end
-                        until false
-                    end)
+                        end)
+                    end
                 end
+            elseif store.hand.Type == 'sword' and bedwars.DaoController.chargingMaid == nil then
+                bedwars.SwordController:swingSwordAtMouse()
+            end
+        until false
+    end)
+end
 
-                AutoClicker = vapelite:CreateModule({
-                    Name = 'AutoClicker',
-                    Function = function(callback)
-                        if callback then
-                            table.insert(AutoClicker.Connections, inputService.InputBegan:Connect(function(input, gameProcessed)
-                                if input.UserInputType == Enum.UserInputType.MouseButton1 then AutoClick() end
-                            end))
-                            table.insert(AutoClicker.Connections, inputService.InputEnded:Connect(function(input)
-                                if input.UserInputType == Enum.UserInputType.MouseButton1 and AutoClickerThread then
-                                    task.cancel(AutoClickerThread)
-                                    AutoClickerThread = nil
-                                end
-                            end))
-                        end
-                    end,
-                    Tooltip = 'Hold attack button to automatically click'
-                })
-                AutoClickerCPS = AutoClicker:CreateSlider({
-                    Name = 'CPS',
-                    Min = 1,
-                    Max = 12,
-                    Default = 12
-                })
-                AutoClickerBlocks = AutoClicker:CreateToggle({
-                    Name = 'Place Blocks',
-                    Default = true
-                })
-            end)
 
             run(function()
                 local Reach = {Enabled = false}
